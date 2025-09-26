@@ -14,7 +14,13 @@ bg = pygame.transform.scale(bg, (screen_width, screen_height))
 floor = pygame.image.load("imgs/base.png")
 floor = pygame.transform.scale(floor, (screen_width, 100))
 
+# classes
+class Bird:
+    def __init__(self):
+        self.image = pygame.image.load("imgs/bird2.png")
 
+
+# main loop
 running = True
 while running:
     for event in pygame.event.get():
