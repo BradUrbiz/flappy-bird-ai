@@ -36,6 +36,7 @@ class Bird:
 class Pipe:
     def __init__(self, x, y, position):
         self.image = pygame.image.load("imgs/pipe_img.png")
+        self.passed = False
         self.x = x
         self.y = y
         self.position = position
@@ -115,12 +116,22 @@ while running:
             if bird1.rect.colliderect(pipe.rect):
                 game_over = True
 
+        # adding to score
+        for pipe in pipes:
+            if pipe.position == "bottom":
+                if not pipe.passed and bird1.rect.left > pipe.rect.right:
+                    score += 1
+                    pipe.passed = True
+
     if game_over:
         font = pygame.font.SysFont(None, 48)
         text = font.render("Game Over!", True, (0 , 0, 0))
         screen.blit(text, (screen_width // 2 - text.get_width() // 2, 100))
 
     screen.blit(bird1.image, bird1.rect)
+    score_font = pygame.font.SysFont(None, 36)
+    score_text = score_font.render(f"Score: {score}", True, (0, 0, 0))
+    screen.blit(score_text, (10, 10))
 
     fps.tick(60)
 
