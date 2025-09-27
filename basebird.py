@@ -6,6 +6,21 @@ pygame.init()
 
 fps = pygame.time.Clock()
 
+# music + sound effects
+"""
+Music: Tobu & Itro - Sunburst
+http://youtube.com/tobuofficial
+https://www.youtube.com/user/officialitro
+Released by NCS https://www.youtube.com/NoCopyrightSounds
+"""
+pygame.mixer.music.load("audio/Tobu & Itro - Sunburst.mp3") 
+pygame.mixer.music.set_volume(0.25)
+pygame.mixer.music.play(-1)
+flappy = pygame.mixer.Sound("audio/wing.wav")
+flappy.set_volume(0.5)
+point = pygame.mixer.Sound("audio/point.wav")
+point.set_volume(0.5)
+
 # window
 screen_width = 500
 screen_height = 600
@@ -70,6 +85,8 @@ while running:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
                 bird1.velocity = flap
+                flappy.play()
+
                 if not game_live:
                     game_live = True
             
@@ -122,6 +139,7 @@ while running:
                 if not pipe.passed and bird1.rect.left > pipe.rect.right:
                     score += 1
                     pipe.passed = True
+                    point.play()
 
     if game_over:
         font = pygame.font.SysFont(None, 48)
