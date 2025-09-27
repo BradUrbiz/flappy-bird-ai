@@ -7,18 +7,16 @@ pygame.init()
 fps = pygame.time.Clock()
 
 # window
-screen_width = 600
-screen_height = 700
+screen_width = 500
+screen_height = 600
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Base Bird")
 bg = pygame.image.load("imgs/bg.png")
 bg = pygame.transform.scale(bg, (screen_width, screen_height))
-floor = pygame.image.load("imgs/base.png")
-floor = pygame.transform.scale(floor, (screen_width, 100))
 
 # physics
 flap = -10
-gravity = 1
+gravity = 0.75
 velocity = 0
 
 # classes
@@ -35,13 +33,33 @@ class Bird:
         self.y += self.velocity
         self.rect.center = (self.x, self.y)
 
+class Pipe:
+    def __init__(self, x, y, position):
+        self.image = pygame.image.load("imgs/pipe_img.png")
+        self.x = x
+        self.y = y
+        self.position = position
+        # scale pipes
+        self.image = pygame.transform.scale(self.image, (50, 400))
+        if self.position == "top":
+            self.image = pygame.transform.flip(self.image, False, True)
+            self.rect = self.image.get_rect(bottomleft=(self.x, self.y))
+        elif self.position == "bottom":
+            self.rect = self.image.get_rect(topleft=(self.x, self.y))
+
 # main loop
 running = True
 game_live = False
 game_over = False
 score = 0
 
-bird = Bird()
+# pipe variables
+pipe_gap = 125
+pipe_time = 0
+pipes = []
+
+# main bird
+bird1 = Bird()
 
 while running:
     for event in pygame.event.get():
@@ -50,17 +68,59 @@ while running:
     
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
-                bird.velocity = flap
+                bird1.velocity = flap
                 if not game_live:
                     game_live = True
+            
+            if event.key == pygame.K_SPACE and game_over:
+                bird1 = Bird()
+                pipes = []            
+                game_over = False
+                score = 0
+                game_live = False
+                pipe_time = 0
 
     screen.blit(bg, (0, 0))
-    screen.blit(floor, (0, screen_height - 100))
-        
-    if game_live and not game_over:
-        bird.update(gravity)
 
-    screen.blit(bird.image, bird.rect)
+    if game_live and not game_over:
+
+        bird1.update(gravity)
+
+        # pipe spawn
+        pipe_time += 1
+        if pipe_time > 90:
+            pipe_height = random.randint(100, 400)
+            top_pipe = Pipe(screen_width, pipe_height, "top")
+            bottom_pipe = Pipe(screen_width, pipe_height + pipe_gap, "bottom")
+            pipes.append(top_pipe)
+            pipes.append(bottom_pipe)
+            pipe_time = 0
+
+        for pipe in pipes:
+            pipe.x -= 4
+            pipe.rect.x = pipe.x                
+            (pipe.image, pipe.rect)
+            screen.blit(pipe.image, pipe.rect)
+
+        for pipe in pipes[:]:
+            if pipe.rect.right <= 0:
+                pipes.remove(pipe)
+
+        # detect screen edge collision
+        if bird1.rect.top <= 0 or bird1.rect.bottom >= screen_height:
+            game_over = True
+
+        # detect pipe collision
+        for pipe in pipes:
+            if bird1.rect.colliderect(pipe.rect):
+                game_over = True
+
+    if game_over:
+        font = pygame.font.SysFont(None, 48)
+        text = font.render("Game Over!", True, (0 , 0, 0))
+        screen.blit(text, (screen_width // 2 - text.get_width() // 2, 100))
+
+    screen.blit(bird1.image, bird1.rect)
 
     fps.tick(60)
 
