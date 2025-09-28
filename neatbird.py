@@ -8,7 +8,7 @@ pygame.init()
 screen_width = 500
 screen_height = 600
 screen = pygame.display.set_mode((screen_width, screen_height))
-pygame.display.set_caption("Flappy Bird NEAT")
+pygame.display.set_caption("Neat Bird")
 bg = pygame.image.load("imgs/bg.png")
 bg = pygame.transform.scale(bg, (screen_width, screen_height))
 
@@ -16,16 +16,13 @@ bird_image = pygame.image.load("imgs/bird2.png")
 pipe_image = pygame.transform.scale(pygame.image.load("imgs/pipe_img.png"), (50, 400))
 
 # physics
-flap = -10      # upward velocity when bird jumps
+flap = -10    
 gravity = 0.75
 pipe_gap = 125
 pipe_velocity = 4
 
-GENERATION = 0
+generation = 0
 
-# -------------------------
-# Bird Class
-# -------------------------
 class Bird:
     def __init__(self, x, y):
         self.image = bird_image
@@ -36,14 +33,10 @@ class Bird:
         self.last_y = y
 
     def update(self, gravity):
-        """Apply gravity and move the bird"""
         self.velocity += gravity
         self.y += self.velocity
         self.rect.center = (self.x, self.y)
 
-# -------------------------
-# Pipe Class
-# -------------------------
 class Pipe:
     def __init__(self, x, y, position):
         self.image = pipe_image
@@ -51,31 +44,32 @@ class Pipe:
         self.y = y
         self.position = position
         self.image = pygame.transform.scale(self.image, (50, 400))
-
         if self.position == "top":
             self.image = pygame.transform.flip(self.image, False, True)
             self.rect = self.image.get_rect(bottomleft=(self.x, self.y))
         elif self.position == "bottom":
             self.rect = self.image.get_rect(topleft=(self.x, self.y))
-
+        
+        # so only score once per pipe
         self.passed = False
 
     def update(self):
         self.x -= pipe_velocity
         self.rect.x = self.x
 
-# -------------------------
-# Genetic Algorithm (NEAT)
-# -------------------------
-def eval_genomes(genomes, config):
-    global GENERATION
-    GENERATION += 1
+# getting into NEAT
 
+def eval_genomes(genomes, config):
+    global generation
+    generation += 1
+
+    # neural network
     nets = []
+    # well the actual bird
     birds = []
+    # genomes so we can give fitness 
     ge = []
 
-    # create neural networks and birds
     for genome_id, genome in genomes:
         net = neat.nn.FeedForwardNetwork.create(genome, config)
         nets.append(net)
@@ -88,11 +82,11 @@ def eval_genomes(genomes, config):
     score = 0
     clock = pygame.time.Clock()
 
+    # checks to see if the birds are still alive
     while len(birds) > 0:
         clock.tick(60)
         screen.blit(bg, (0, 0))
 
-        # spawn pipes
         pipe_time += 1
         if pipe_time > 90:
             pipe_height = random.randint(100, 400)
@@ -102,12 +96,11 @@ def eval_genomes(genomes, config):
             pipes.append(bottom_pipe)
             pipe_time = 0
 
-        # move and draw pipes
         for pipe in pipes:
             pipe.update()
             screen.blit(pipe.image, pipe.rect)
 
-        # remove off-screen pipes
+        # old pipes
         i = 0
         while i < len(pipes):
             if pipes[i].rect.right <= 0:
@@ -115,20 +108,21 @@ def eval_genomes(genomes, config):
             else:
                 i += 1
 
-        # loop through birds
         i = 0
         while i < len(birds):
             bird = birds[i]
             bird.update(gravity)
             screen.blit(bird.image, bird.rect)
 
-            ge[i].fitness += 0.01  # reward for staying alive
+            # rewarding for survival (notice it is little because I want to prioritize going THROUGH pipes)
+            ge[i].fitness += 0.01
 
-            if abs(bird.y - bird.last_y) < 1:  # hovering penalty
+            # I don't want birds to just hover at one height but this can backfire because some pipes may just be the same height
+            # but it seems to work well enough
+            if abs(bird.y - bird.last_y) < 1:
                 ge[i].fitness -= 0.05
             bird.last_y = bird.y
 
-            # find nearest pipes
             top_pipe = None
             bottom_pipe = None
             for pipe in pipes:
@@ -140,37 +134,42 @@ def eval_genomes(genomes, config):
                 if top_pipe and bottom_pipe:
                     break
 
-            # inputs for neural net
+            # inputs are the birds y and distance to top + bottom p
             if top_pipe and bottom_pipe:
                 dist_to_top = abs(bird.y - top_pipe.rect.bottom) / screen_height
                 dist_to_bottom = abs(bird.y - bottom_pipe.rect.top) / screen_height
                 inputs = (bird.y / screen_height, dist_to_top, dist_to_bottom)
+          
+            # because pipes are do not spawn right away
             else:
                 inputs = (bird.y / screen_height, 0, 0)
 
-            # decision (jump or not)
+            # only got one output, because tanh, -1 to 1, if > 0.5 flap
             output = nets[i].activate(inputs)
             if output[0] > 0.5:
-                bird.velocity = flap   # directly set velocity (no flap function)
+                bird.velocity = flap
 
-            # collision with pipe
+            # kill birds and remove fitness
             hit = False
             for pipe in pipes:
                 if bird.rect.colliderect(pipe.rect):
                     ge[i].fitness -= 1
-                    del birds[i], nets[i], ge[i]
+                    del birds[i]
+                    del nets[i]
+                    del ge[i]
                     hit = True
                     break
             if hit:
                 continue
 
-            # collision with screen edges
             if bird.rect.top <= 0 or bird.rect.bottom >= screen_height:
                 ge[i].fitness -= 1
-                del birds[i], nets[i], ge[i]
+                del birds[i]
+                del nets[i]
+                del ge[i]
                 continue
 
-            # score and reward
+            # reward for passing bottom pipe, huge fitness boost
             for pipe in pipes:
                 if pipe.position == "bottom":
                     if not pipe.passed and bird.rect.left > pipe.rect.right:
@@ -179,17 +178,18 @@ def eval_genomes(genomes, config):
                         ge[i].fitness += 200
             i += 1
 
-        # draw HUD
+        # hud
         font = pygame.font.SysFont(None, 36)
-        screen.blit(font.render(f"Score: {score}", True, (0, 0, 0)), (10, 10))
-        screen.blit(font.render(f"Gen: {GENERATION}", True, (0, 0, 0)), (10, 40))
-        screen.blit(font.render(f"Population: {len(birds)}", True, (0, 0, 0)), (10, 70))
+        score_text = font.render(f"Score: {score}", True, (0, 0, 0))
+        screen.blit(score_text, (10, 10))
+        gen_text = font.render(f"Gen: {generation}", True, (0, 0, 0))
+        screen.blit(gen_text, (10, 40))
+        pop_text = font.render(f"Population: {len(birds)}", True, (0, 0, 0))
+        screen.blit(pop_text, (10, 70))
 
         pygame.display.update()
 
-# -------------------------
-# NEAT Setup
-# -------------------------
+# load neat
 def run(config_file):
     config = neat.config.Config(
         neat.DefaultGenome,
@@ -199,7 +199,6 @@ def run(config_file):
         config_file
     )
     p = neat.Population(config)
-    p.run(eval_genomes, 1000)
+    p.run(eval_genomes, 1000) # set max generations high because i dont want it to end in this scenario
 
-if __name__ == "__main__":
-    run("neatconfig.txt")
+run("neatconfig.txt")
