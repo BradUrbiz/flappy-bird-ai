@@ -9,4 +9,6 @@ WALKTHROUGH:
 - NEAT Config file is for configuration that is used in Neat Bird, it is needed to run NEAT Bird
 - Neat Bird file has genetic algorithm, and is the main thing
 
+Credit to original creator of Flappy Bird: Dong Nguyen
+
 THANKS!
