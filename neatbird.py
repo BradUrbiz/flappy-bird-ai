@@ -134,15 +134,15 @@ def eval_genomes(genomes, config):
                 if top_pipe and bottom_pipe:
                     break
 
-            # inputs are the birds y and distance to top + bottom p
+            # inputs are the birds y, vertical velocity, horizontal distance, and distance to top + bottom pipe
             if top_pipe and bottom_pipe:
                 dist_to_top = abs(bird.y - top_pipe.rect.bottom) / screen_height
                 dist_to_bottom = abs(bird.y - bottom_pipe.rect.top) / screen_height
-                inputs = (bird.y / screen_height, dist_to_top, dist_to_bottom)
-          
+                dist_to_pipe = (top_pipe.x - bird.x) / screen_width
+                inputs = (bird.y / screen_height, bird.velocity / 10, dist_to_top, dist_to_bottom, dist_to_pipe)
             # because pipes are do not spawn right away
             else:
-                inputs = (bird.y / screen_height, 0, 0)
+                inputs = (bird.y / screen_height, bird.velocity / 10, 0, 0, 1)
 
             # only got one output, because tanh, -1 to 1, if > 0.5 flap
             output = nets[i].activate(inputs)
@@ -199,6 +199,8 @@ def run(config_file):
         config_file
     )
     p = neat.Population(config)
-    p.run(eval_genomes, 1000) # set max generations high because i dont want it to end in this scenario
+    p.run(eval_genomes, 1000) 
+# set max generations high because i dont want it to end in this scenario
+# but could have done no_fitness_termination = True in config
 
 run("neatconfig.txt")
